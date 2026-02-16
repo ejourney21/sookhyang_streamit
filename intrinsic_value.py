@@ -40,7 +40,8 @@ def _is_estimate_label(label: Optional[str]) -> bool:
 
 
 def _weighted_eps(eps_n: float, eps_n1: float, eps_n2: float) -> float:
-    return (eps_n * 3.0) + (eps_n1 * 2.0) + (eps_n2 * 1.0)
+    raw = (eps_n * 3.0) + (eps_n1 * 2.0) + (eps_n2 * 1.0)
+    return (raw / 6.0) * 10.0
 
 
 def _intrinsic_value(bps: float, weighted_eps: float) -> float:

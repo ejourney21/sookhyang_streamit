@@ -1489,7 +1489,8 @@ if "run" in locals() and run:
         p0 = annual_sorted[idx]
         p1 = annual_sorted[idx - 1]
         p2 = annual_sorted[idx - 2]
-        return (p0.eps * 3.0) + (p1.eps * 2.0) + (p2.eps * 1.0)
+        raw = (p0.eps * 3.0) + (p1.eps * 2.0) + (p2.eps * 1.0)
+        return (raw / 6.0) * 10.0
 
     def _intrinsic_by_year(year: int) -> float | None:
         idx = annual_index.get(year)

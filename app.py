@@ -2446,7 +2446,7 @@ if "run" in locals() and run:
         """
 <div class="formula-note">
   계산 근거<br/>
-  · 가중 EPS = EPS(n)×3 + EPS(n-1)×2 + EPS(n-2)×1<br/>
+  · 가중 EPS = (EPS(n)×3 + EPS(n-1)×2 + EPS(n-2)×1) / 6 × 10<br/>
   · TTM(추정 연간 EPS) = 최근 4분기 EPS 합산<br/>
   · 내재가치 = (BPS + 가중 EPS) / 2<br/>
   · 내재가치 대비 괴리율 = (현재주가 - 내재가치) / 내재가치 × 100

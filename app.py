@@ -1357,7 +1357,7 @@ def _format_score(value: float | None) -> str:
     return f"{value:.2f}"
 
 
-def _style_intrinsic_row(df: pd.DataFrame) -> pd.io.formats.style.Styler:
+def _style_intrinsic_row(df: pd.DataFrame):
     def _row_style(row: pd.Series) -> list[str]:
         if str(row.get("항목", "")).strip() == "내재가치(원)":
             return [

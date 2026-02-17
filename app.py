@@ -779,16 +779,28 @@ def _parse_number(value: str) -> float | None:
     return -num if is_negative else num
 
 
-def _real_eps(
-    eps: float | None,
-    issued_shares: float | None,
-    float_shares: float | None,
-) -> float | None:
-    if eps is None:
+def _to_won_if_needed(value: float | None) -> float | None:
+    if value is None:
         return None
-    if issued_shares is None or float_shares is None or float_shares == 0:
-        return eps
-    return eps * (issued_shares / float_shares)
+    # Heuristic: financial statement values are commonly in "억원".
+    return value * 100_000_000 if value < 1_000_000 else value
+
+
+def _real_eps_from_financials(
+    net_income: float | None,
+    equity: float | None,
+    bps: float | None,
+) -> float | None:
+    if net_income is None or equity is None or bps is None or bps == 0:
+        return None
+    equity_won = _to_won_if_needed(equity)
+    net_income_won = _to_won_if_needed(net_income)
+    if equity_won is None or net_income_won is None:
+        return None
+    float_shares = equity_won / bps
+    if float_shares <= 0:
+        return None
+    return net_income_won / float_shares
 
 
 def _extract_period(label: str) -> tuple[int, int] | None:
@@ -822,15 +834,15 @@ def _build_annual_points(table: dict) -> tuple[list[AnnualPoint], dict[int, floa
         ["EPS(원)", "EPS", "주당순이익", "주당순이익(원)"],
         contains=["eps"],
     )
-    issued_row = _get_row(
+    net_income_row = _get_row(
         rows,
-        ["발행주식수(보통주)", "발행주식수", "주식수"],
-        contains=["발행주식수", "보통주"],
+        ["당기순이익(지배)", "당기순이익", "지배주주순이익"],
+        contains=["순이익"],
     )
-    float_row = _get_row(
+    equity_row = _get_row(
         rows,
-        ["유통주식수(보통주)", "유통주식수", "유통주"],
-        contains=["유통주식수", "유통주"],
+        ["자본총계(지배)", "자본총계", "자기자본"],
+        contains=["자본총계"],
     )
     bps_row = _get_row(
         rows,
@@ -857,12 +869,16 @@ def _build_annual_points(table: dict) -> tuple[list[AnnualPoint], dict[int, floa
             continue
 
         eps_value = _parse_number(eps_row[idx]) if idx < len(eps_row) else None
-        issued_value = (
-            _parse_number(issued_row[idx]) if idx < len(issued_row) else None
+        net_income_value = (
+            _parse_number(net_income_row[idx]) if idx < len(net_income_row) else None
         )
-        float_value = _parse_number(float_row[idx]) if idx < len(float_row) else None
-        eps = _real_eps(eps_value, issued_value, float_value)
+        equity_value = (
+            _parse_number(equity_row[idx]) if idx < len(equity_row) else None
+        )
         bps = _parse_number(bps_row[idx]) if idx < len(bps_row) else None
+        eps = _real_eps_from_financials(net_income_value, equity_value, bps)
+        if eps is None:
+            eps = eps_value
         pbr = _parse_number(pbr_row[idx]) if idx < len(pbr_row) else None
 
         if eps is None:
@@ -886,15 +902,15 @@ def _build_quarterly_points(
         ["EPS(원)", "EPS", "주당순이익", "주당순이익(원)"],
         contains=["eps"],
     )
-    issued_row = _get_row(
+    net_income_row = _get_row(
         rows,
-        ["발행주식수(보통주)", "발행주식수", "주식수"],
-        contains=["발행주식수", "보통주"],
+        ["당기순이익(지배)", "당기순이익", "지배주주순이익"],
+        contains=["순이익"],
     )
-    float_row = _get_row(
+    equity_row = _get_row(
         rows,
-        ["유통주식수(보통주)", "유통주식수", "유통주"],
-        contains=["유통주식수", "유통주"],
+        ["자본총계(지배)", "자본총계", "자기자본"],
+        contains=["자본총계"],
     )
     bps_row = _get_row(
         rows,
@@ -925,12 +941,16 @@ def _build_quarterly_points(
             continue
 
         eps_value = _parse_number(eps_row[idx]) if idx < len(eps_row) else None
-        issued_value = (
-            _parse_number(issued_row[idx]) if idx < len(issued_row) else None
+        net_income_value = (
+            _parse_number(net_income_row[idx]) if idx < len(net_income_row) else None
         )
-        float_value = _parse_number(float_row[idx]) if idx < len(float_row) else None
-        eps = _real_eps(eps_value, issued_value, float_value)
+        equity_value = (
+            _parse_number(equity_row[idx]) if idx < len(equity_row) else None
+        )
         bps = _parse_number(bps_row[idx]) if idx < len(bps_row) else None
+        eps = _real_eps_from_financials(net_income_value, equity_value, bps)
+        if eps is None:
+            eps = eps_value
         pbr = _parse_number(pbr_row[idx]) if idx < len(pbr_row) else None
 
         if eps is None:
@@ -1581,22 +1601,22 @@ if "run" in locals() and run:
 
     def _real_eps_by_period(table: dict) -> dict[int, float]:
         rows = table.get("rows", {})
-        eps_row = _get_row(
+        net_income_row = _get_row(
             rows,
-            ["EPS(원)", "EPS", "주당순이익", "주당순이익(원)"],
-            contains=["eps"],
+            ["당기순이익(지배)", "당기순이익", "지배주주순이익"],
+            contains=["순이익"],
         )
-        issued_row = _get_row(
+        equity_row = _get_row(
             rows,
-            ["발행주식수(보통주)", "발행주식수", "주식수"],
-            contains=["발행주식수", "보통주"],
+            ["자본총계(지배)", "자본총계", "자기자본"],
+            contains=["자본총계"],
         )
-        float_row = _get_row(
+        bps_row = _get_row(
             rows,
-            ["유통주식수(보통주)", "유통주식수", "유통주"],
-            contains=["유통주식수", "유통주"],
+            ["BPS(원)", "BPS", "주당순자산가치", "주당순자산가치(원)"],
+            contains=["bps"],
         )
-        if not eps_row:
+        if not net_income_row or not equity_row or not bps_row:
             return {}
         data_columns = _data_columns(table.get("columns", []))
         values: dict[int, float] = {}
@@ -1604,14 +1624,16 @@ if "run" in locals() and run:
             if _is_estimate(label):
                 continue
             key = _period_key(label)
-            if key is None or idx >= len(eps_row):
+            if key is None or idx >= len(net_income_row):
                 continue
-            eps_value = _parse_number(eps_row[idx])
-            issued_value = (
-                _parse_number(issued_row[idx]) if idx < len(issued_row) else None
+            net_income_value = _parse_number(net_income_row[idx])
+            equity_value = (
+                _parse_number(equity_row[idx]) if idx < len(equity_row) else None
             )
-            float_value = _parse_number(float_row[idx]) if idx < len(float_row) else None
-            real_eps = _real_eps(eps_value, issued_value, float_value)
+            bps_value = _parse_number(bps_row[idx]) if idx < len(bps_row) else None
+            real_eps = _real_eps_from_financials(
+                net_income_value, equity_value, bps_value
+            )
             if real_eps is None:
                 continue
             values[key] = real_eps
@@ -1656,22 +1678,22 @@ if "run" in locals() and run:
         if not quarter_table:
             return {}
         rows = quarter_table.get("rows", {})
-        eps_row = _get_row(
+        net_income_row = _get_row(
             rows,
-            ["EPS(원)", "EPS", "주당순이익", "주당순이익(원)"],
-            contains=["eps"],
+            ["당기순이익(지배)", "당기순이익", "지배주주순이익"],
+            contains=["순이익"],
         )
-        issued_row = _get_row(
+        equity_row = _get_row(
             rows,
-            ["발행주식수(보통주)", "발행주식수", "주식수"],
-            contains=["발행주식수", "보통주"],
+            ["자본총계(지배)", "자본총계", "자기자본"],
+            contains=["자본총계"],
         )
-        float_row = _get_row(
+        bps_row = _get_row(
             rows,
-            ["유통주식수(보통주)", "유통주식수", "유통주"],
-            contains=["유통주식수", "유통주"],
+            ["BPS(원)", "BPS", "주당순자산가치", "주당순자산가치(원)"],
+            contains=["bps"],
         )
-        if not eps_row:
+        if not net_income_row or not equity_row or not bps_row:
             return {}
         data_columns = _data_columns(quarter_table.get("columns", []))
         values: dict[tuple[int, int], float] = {}
@@ -1679,18 +1701,20 @@ if "run" in locals() and run:
             if _is_estimate(label):
                 continue
             period = _extract_period(label)
-            if not period or idx >= len(eps_row):
+            if not period or idx >= len(net_income_row):
                 continue
             year, month = period
             quarter = {3: 1, 6: 2, 9: 3, 12: 4}.get(month)
             if not quarter:
                 continue
-            eps_value = _parse_number(eps_row[idx])
-            issued_value = (
-                _parse_number(issued_row[idx]) if idx < len(issued_row) else None
+            net_income_value = _parse_number(net_income_row[idx])
+            equity_value = (
+                _parse_number(equity_row[idx]) if idx < len(equity_row) else None
             )
-            float_value = _parse_number(float_row[idx]) if idx < len(float_row) else None
-            real_eps = _real_eps(eps_value, issued_value, float_value)
+            bps_value = _parse_number(bps_row[idx]) if idx < len(bps_row) else None
+            real_eps = _real_eps_from_financials(
+                net_income_value, equity_value, bps_value
+            )
             if real_eps is None:
                 continue
             values[(year, quarter)] = real_eps
@@ -2608,7 +2632,8 @@ if "run" in locals() and run:
         """
 <div class="formula-note">
   계산 근거<br/>
-  · 실질 EPS = EPS × (발행주식수 / 유통주식수) (유통주식수 없으면 EPS 사용)<br/>
+  · 유통주식수 = 자본총계(지배) / BPS (자본총계는 필요 시 억→원 환산)<br/>
+  · 실질 EPS = 당기순이익(지배) / 유통주식수 (필요 시 억→원 환산)<br/>
   · 가중 EPS = (실질 EPS(n)×3 + 실질 EPS(n-1)×2 + 실질 EPS(n-2)×1) / 6 × 10<br/>
   · TTM(추정 연간 EPS) = 최근 4분기 EPS 합산<br/>
   · 내재가치 = (BPS + 가중 EPS) / 2<br/>
@@ -2625,7 +2650,8 @@ if "run" in locals() and run:
 <div class="formula-note">
   계산 근거<br/>
   · TTM = 최근 4분기 합산(연속 4분기 기준)<br/>
-  · 실질 EPS = EPS × (발행주식수 / 유통주식수) (유통주식수 없으면 EPS 사용)<br/>
+  · 유통주식수 = 자본총계(지배) / BPS (자본총계는 필요 시 억→원 환산)<br/>
+  · 실질 EPS = 당기순이익(지배) / 유통주식수 (필요 시 억→원 환산)<br/>
   · TTM PER = 현재주가 / TTM EPS<br/>
   · TTM 배당수익률 = TTM DPS / 현재주가 × 100<br/>
   · TTM 배당성향 = TTM DPS / TTM EPS × 100

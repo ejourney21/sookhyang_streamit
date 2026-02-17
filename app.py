@@ -1357,6 +1357,17 @@ def _format_score(value: float | None) -> str:
     return f"{value:.2f}"
 
 
+def _style_intrinsic_row(df: pd.DataFrame) -> pd.io.formats.style.Styler:
+    def _row_style(row: pd.Series) -> list[str]:
+        if str(row.get("항목", "")).strip() == "내재가치(원)":
+            return [
+                "background-color: #fff3ed; font-weight: 700; color: #a24a1d;"
+            ] * len(row)
+        return [""] * len(row)
+
+    return df.style.apply(_row_style, axis=1)
+
+
 def _ratio_series(
     numer: dict[int, float], denom: dict[int, float], *, percent: bool = False
 ) -> dict[int, float]:
@@ -2626,14 +2637,15 @@ if "run" in locals() and run:
 
     st.markdown('<div class="section">', unsafe_allow_html=True)
     st.markdown('<div class="section-title">상세 테이블</div>', unsafe_allow_html=True)
-    st.table(rows)
+    detail_df = pd.DataFrame(rows)
+    st.dataframe(_style_intrinsic_row(detail_df), use_container_width=True, hide_index=True)
     st.markdown('<div class="detail-spacer"></div>', unsafe_allow_html=True)
     st.markdown(
         """
 <div class="formula-note">
   계산 근거<br/>
-  · 유통주식수 = 자본총계(지배) / BPS (자본총계는 필요 시 억→원 환산)<br/>
-  · 실질 EPS = 당기순이익(지배) / 유통주식수 (필요 시 억→원 환산)<br/>
+  · 유통주식수 = 자본총계(지배) / BPS (필요 시 억→원 환산)<br/>
+  · 실질 EPS = 자본총계/BPS로 유통주식수 역산, 당기순이익(지배)/유통주식수 (필요 시 억→원 환산)<br/>
   · 가중 EPS = (실질 EPS(n)×3 + 실질 EPS(n-1)×2 + 실질 EPS(n-2)×1) / 6 × 10<br/>
   · TTM(추정 연간 EPS) = 최근 4분기 EPS 합산<br/>
   · 내재가치 = (BPS + 가중 EPS) / 2<br/>
@@ -2644,14 +2656,15 @@ if "run" in locals() and run:
     )
     st.markdown('<div class="detail-spacer"></div>', unsafe_allow_html=True)
     st.markdown('<div class="section-title">상세테이블2</div>', unsafe_allow_html=True)
-    st.table(rows2)
+    detail2_df = pd.DataFrame(rows2)
+    st.dataframe(detail2_df, use_container_width=True, hide_index=True)
     st.markdown(
         """
 <div class="formula-note">
   계산 근거<br/>
   · TTM = 최근 4분기 합산(연속 4분기 기준)<br/>
-  · 유통주식수 = 자본총계(지배) / BPS (자본총계는 필요 시 억→원 환산)<br/>
-  · 실질 EPS = 당기순이익(지배) / 유통주식수 (필요 시 억→원 환산)<br/>
+  · 유통주식수 = 자본총계(지배) / BPS (필요 시 억→원 환산)<br/>
+  · 실질 EPS = 자본총계/BPS로 유통주식수 역산, 당기순이익(지배)/유통주식수 (필요 시 억→원 환산)<br/>
   · TTM PER = 현재주가 / TTM EPS<br/>
   · TTM 배당수익률 = TTM DPS / 현재주가 × 100<br/>
   · TTM 배당성향 = TTM DPS / TTM EPS × 100

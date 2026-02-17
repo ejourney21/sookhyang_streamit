@@ -2636,7 +2636,7 @@ if "run" in locals() and run:
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('<div class="section">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">상세 테이블</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">상세테이블 #1</div>', unsafe_allow_html=True)
     detail_df = pd.DataFrame(rows)
     st.dataframe(_style_intrinsic_row(detail_df), use_container_width=True, hide_index=True)
     st.markdown('<div class="detail-spacer"></div>', unsafe_allow_html=True)
@@ -2655,7 +2655,7 @@ if "run" in locals() and run:
         unsafe_allow_html=True,
     )
     st.markdown('<div class="detail-spacer"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">상세테이블2</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">상세테이블 #2</div>', unsafe_allow_html=True)
     detail2_df = pd.DataFrame(rows2)
     st.dataframe(detail2_df, use_container_width=True, hide_index=True)
     st.markdown(

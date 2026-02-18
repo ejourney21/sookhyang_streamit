@@ -2122,6 +2122,24 @@ if "run" in locals() and run:
 
     per_value, per_year = _latest_value(per_series)
     pbr_value, pbr_year = _latest_value(pbr_series)
+    if current_price > 0:
+        if eps_ttm is not None and eps_ttm > 0:
+            per_value = current_price / eps_ttm
+            per_year = "TTM"
+        else:
+            latest_eps_value, latest_eps_year = _latest_value(eps_series)
+            if latest_eps_value is not None and latest_eps_value > 0:
+                per_value = current_price / latest_eps_value
+                per_year = latest_eps_year
+
+        if bps_ttm is not None and bps_ttm > 0:
+            pbr_value = current_price / bps_ttm
+            pbr_year = "TTM"
+        else:
+            latest_bps_value, latest_bps_year = _latest_value(bps_series)
+            if latest_bps_value is not None and latest_bps_value > 0:
+                pbr_value = current_price / latest_bps_value
+                pbr_year = latest_bps_year
     div_yield_value = None
     div_yield_year = None
     if current_price > 0:
@@ -2465,13 +2483,13 @@ if "run" in locals() and run:
 
     if pbr_value is None:
         pbr_status = "neutral"
-        pbr_note = "PBR 데이터 부족"
+        pbr_note = "현재주가 기준 산출 · PBR 데이터 부족"
     elif pbr_value <= 1:
         pbr_status = "good"
-        pbr_note = "PBR 1배 이하"
+        pbr_note = "현재주가 기준 산출 · PBR 1배 이하"
     else:
         pbr_status = "bad"
-        pbr_note = "PBR 1배 초과"
+        pbr_note = "현재주가 기준 산출 · PBR 1배 초과"
     kpis.append(
         {
             "title": "PBR(최신)",
@@ -2485,13 +2503,13 @@ if "run" in locals() and run:
 
     if per_value is None:
         per_status = "neutral"
-        per_note = "PER 데이터 부족"
+        per_note = "현재주가 기준 산출 · PER 데이터 부족"
     elif per_value <= 10:
         per_status = "good"
-        per_note = "PER 10배 이하"
+        per_note = "현재주가 기준 산출 · PER 10배 이하"
     else:
         per_status = "bad"
-        per_note = "PER 10배 초과"
+        per_note = "현재주가 기준 산출 · PER 10배 초과"
     kpis.append(
         {
             "title": "PER(최신)",
@@ -2505,13 +2523,13 @@ if "run" in locals() and run:
 
     if div_yield_value is None:
         div_status = "neutral"
-        div_note = "배당수익률 데이터 부족"
+        div_note = "현재주가 기준 산출 · 배당수익률 데이터 부족"
     elif div_yield_value >= 3:
         div_status = "good"
-        div_note = "배당수익률 3% 이상"
+        div_note = "현재주가 기준 산출 · 배당수익률 3% 이상"
     else:
         div_status = "bad"
-        div_note = "배당수익률 3% 미만"
+        div_note = "현재주가 기준 산출 · 배당수익률 3% 미만"
     div_yield_period = None
     if div_yield_year == "TTM":
         div_yield_period = "TTM 기준"

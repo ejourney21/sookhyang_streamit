@@ -2700,42 +2700,47 @@ if selected_code and not price_df.empty:
     st.markdown('<div class="section-title">최근 3년 주가</div>', unsafe_allow_html=True)
     chart_df = price_df.copy()
     chart_df = chart_df.set_index("date").rename(columns={"price": "주가"})
-    used_annual_segment = False
-    if segment_data:
-        seg_points: list[tuple[pd.Timestamp, float]] = []
-        for item in segment_data:
-            end = item.get("end") if isinstance(item, dict) else None
-            value = item.get("value") if isinstance(item, dict) else None
-            if not end or value is None:
-                continue
-            end_ts = pd.to_datetime(end, errors="coerce")
-            if pd.isna(end_ts):
-                continue
-            seg_points.append((end_ts, value))
-        if seg_points:
-            chart_df["내재가치(연간-구간)"] = _build_segment_series(
-                chart_df.index, seg_points
-            )
-            used_annual_segment = True
-    if not used_annual_segment and intrinsic_annual is not None:
-        chart_df["내재가치(연간)"] = intrinsic_annual
+    chart_df = chart_df.dropna()
+    if chart_df.empty:
+        st.info("주가 데이터가 비어있습니다.")
+        st.markdown("</div>", unsafe_allow_html=True)
+    else:
+        used_annual_segment = False
+        if segment_data:
+            seg_points: list[tuple[pd.Timestamp, float]] = []
+            for item in segment_data:
+                end = item.get("end") if isinstance(item, dict) else None
+                value = item.get("value") if isinstance(item, dict) else None
+                if not end or value is None:
+                    continue
+                end_ts = pd.to_datetime(end, errors="coerce")
+                if pd.isna(end_ts):
+                    continue
+                seg_points.append((end_ts, value))
+            if seg_points:
+                chart_df["내재가치(연간-구간)"] = _build_segment_series(
+                    chart_df.index, seg_points
+                )
+                used_annual_segment = True
+        if not used_annual_segment and intrinsic_annual is not None:
+            chart_df["내재가치(연간)"] = intrinsic_annual
 
-    used_ttm_segment = False
-    if (
-        isinstance(ttm_segment, dict)
-        and ttm_segment.get("end")
-        and ttm_segment.get("value") is not None
-    ):
-        ttm_end = pd.to_datetime(ttm_segment["end"], errors="coerce")
-        if not pd.isna(ttm_end):
-            chart_df["내재가치(TTM-구간)"] = _build_segment_series(
-                chart_df.index, [(ttm_end, ttm_segment["value"])]
-            )
-            used_ttm_segment = True
-    if not used_ttm_segment and intrinsic_ttm is not None:
-        chart_df["내재가치(TTM)"] = intrinsic_ttm
-    st.line_chart(chart_df)
-    st.markdown("</div>", unsafe_allow_html=True)
+        used_ttm_segment = False
+        if (
+            isinstance(ttm_segment, dict)
+            and ttm_segment.get("end")
+            and ttm_segment.get("value") is not None
+        ):
+            ttm_end = pd.to_datetime(ttm_segment["end"], errors="coerce")
+            if not pd.isna(ttm_end):
+                chart_df["내재가치(TTM-구간)"] = _build_segment_series(
+                    chart_df.index, [(ttm_end, ttm_segment["value"])]
+                )
+                used_ttm_segment = True
+        if not used_ttm_segment and intrinsic_ttm is not None:
+            chart_df["내재가치(TTM)"] = intrinsic_ttm
+        st.line_chart(chart_df)
+        st.markdown("</div>", unsafe_allow_html=True)
 elif selected_code:
     st.info("최근 3년 주가 데이터를 불러오지 못했습니다. 네트워크/요청 제한 또는 응답 형식을 확인해주세요.")
     if st.checkbox("차트 디버그 보기"):

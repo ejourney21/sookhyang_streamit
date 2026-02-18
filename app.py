@@ -2067,7 +2067,7 @@ if "run" in locals() and run:
         last_value = dps_series.get(last_year)
         if prev_value is not None and prev_value > 0 and last_value is not None:
             dps_yoy = (last_value / prev_value - 1) * 100.0
-            dps_yoy_period = _kpi_period(f"{prev_year}->{last_year}")
+            dps_yoy_period = f"전년 기준 {prev_year}->{last_year}"
 
     eps_yoy = None
     eps_yoy_period = None
@@ -2078,7 +2078,7 @@ if "run" in locals() and run:
         last_value = eps_series.get(last_year)
         if prev_value is not None and prev_value > 0 and last_value is not None:
             eps_yoy = (last_value / prev_value - 1) * 100.0
-            eps_yoy_period = _kpi_period(f"{prev_year}->{last_year}")
+            eps_yoy_period = f"전년 기준 {prev_year}->{last_year}"
 
     triple_yoy = None
     triple_yoy_period = None
@@ -2108,7 +2108,7 @@ if "run" in locals() and run:
                 and op_last > op_prev
                 and ni_last > ni_prev
             )
-            triple_yoy_period = _kpi_period(f"{prev_year}->{last_year}")
+            triple_yoy_period = f"전년 기준 {prev_year}->{last_year}"
 
     payout_prev = None
     payout_curr = None
@@ -2118,7 +2118,7 @@ if "run" in locals() and run:
         prev_year, last_year = payout_years[-2], payout_years[-1]
         payout_prev = payout_series.get(prev_year)
         payout_curr = payout_series.get(last_year)
-        payout_period = _kpi_period(f"{prev_year}->{last_year}")
+        payout_period = f"최근 2년 기준 {prev_year}->{last_year}"
 
     per_value, per_year = _latest_value(per_series)
     pbr_value, pbr_year = _latest_value(pbr_series)
@@ -2144,8 +2144,8 @@ if "run" in locals() and run:
         john_neff_score = (eps_cagr + div_yield_value) / per_value
 
     dps_eps_ratio = None
-    if eps_cagr is not None and eps_cagr != 0 and dps_cagr is not None:
-        dps_eps_ratio = dps_cagr / eps_cagr
+    if eps_yoy is not None and eps_yoy != 0 and dps_yoy is not None:
+        dps_eps_ratio = dps_yoy / eps_yoy
 
     roe_avg, roe_years = _avg_last_n(roe_series, 3)
     roe_period = (
@@ -2346,7 +2346,7 @@ if "run" in locals() and run:
             "value": _format_ratio(dps_eps_ratio),
             "status": ratio_status,
             "note": ratio_note,
-            "period": eps_period,
+            "period": eps_yoy_period or dps_yoy_period,
             "group": "배당성장",
         }
     )

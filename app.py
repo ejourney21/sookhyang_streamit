@@ -1239,6 +1239,16 @@ def _format_period_label(label: str | None, year: int | None = None) -> str:
     return "-"
 
 
+def _kpi_period(label: str | None, suffix: str = "기준") -> str | None:
+    if not label:
+        return None
+    if label == "TTM":
+        return "TTM 기준"
+    if label.endswith(suffix):
+        return label
+    return f"{label} {suffix}"
+
+
 def _ttm_label_from_quarters(points: list[QuarterlyPoint] | None) -> str | None:
     if not points or len(points) < 4:
         return None
@@ -2045,8 +2055,8 @@ if "run" in locals() and run:
 
     eps_cagr, eps_start, eps_end = _calc_cagr(eps_series)
     dps_cagr, dps_start, dps_end = _calc_cagr(dps_series)
-    eps_period = f"{eps_start}~{eps_end}" if eps_start and eps_end else None
-    dps_period = f"{dps_start}~{dps_end}" if dps_start and dps_end else None
+    eps_period = _kpi_period(f"{eps_start}~{eps_end}") if eps_start and eps_end else None
+    dps_period = _kpi_period(f"{dps_start}~{dps_end}") if dps_start and dps_end else None
 
     dps_yoy = None
     dps_yoy_period = None
@@ -2057,7 +2067,7 @@ if "run" in locals() and run:
         last_value = dps_series.get(last_year)
         if prev_value is not None and prev_value > 0 and last_value is not None:
             dps_yoy = (last_value / prev_value - 1) * 100.0
-            dps_yoy_period = f"{prev_year}->{last_year}"
+            dps_yoy_period = _kpi_period(f"{prev_year}->{last_year}")
 
     eps_yoy = None
     eps_yoy_period = None
@@ -2068,7 +2078,7 @@ if "run" in locals() and run:
         last_value = eps_series.get(last_year)
         if prev_value is not None and prev_value > 0 and last_value is not None:
             eps_yoy = (last_value / prev_value - 1) * 100.0
-            eps_yoy_period = f"{prev_year}->{last_year}"
+            eps_yoy_period = _kpi_period(f"{prev_year}->{last_year}")
 
     triple_yoy = None
     triple_yoy_period = None
@@ -2098,7 +2108,7 @@ if "run" in locals() and run:
                 and op_last > op_prev
                 and ni_last > ni_prev
             )
-            triple_yoy_period = f"{prev_year}->{last_year}"
+            triple_yoy_period = _kpi_period(f"{prev_year}->{last_year}")
 
     payout_prev = None
     payout_curr = None
@@ -2108,11 +2118,21 @@ if "run" in locals() and run:
         prev_year, last_year = payout_years[-2], payout_years[-1]
         payout_prev = payout_series.get(prev_year)
         payout_curr = payout_series.get(last_year)
-        payout_period = f"{prev_year}->{last_year}"
+        payout_period = _kpi_period(f"{prev_year}->{last_year}")
 
     per_value, per_year = _latest_value(per_series)
     pbr_value, pbr_year = _latest_value(pbr_series)
-    div_yield_value, div_yield_year = _latest_value(div_yield_series)
+    div_yield_value = None
+    div_yield_year = None
+    if current_price > 0:
+        if div_yield_ttm is not None:
+            div_yield_value = div_yield_ttm
+            div_yield_year = "TTM"
+        else:
+            latest_dps_value, latest_dps_year = _latest_value(dps_series)
+            if latest_dps_value is not None:
+                div_yield_value = latest_dps_value / current_price * 100.0
+                div_yield_year = latest_dps_year
 
     john_neff_score = None
     if (
@@ -2128,7 +2148,9 @@ if "run" in locals() and run:
         dps_eps_ratio = dps_cagr / eps_cagr
 
     roe_avg, roe_years = _avg_last_n(roe_series, 3)
-    roe_period = f"{roe_years[0]}~{roe_years[-1]}" if len(roe_years) >= 3 else None
+    roe_period = (
+        f"{roe_years[0]}~{roe_years[-1]} 평균 기준" if len(roe_years) >= 3 else None
+    )
 
     debt_ratio, debt_year = _latest_value(debt_ratio_series)
     if debt_ratio is None:
@@ -2140,7 +2162,7 @@ if "run" in locals() and run:
             if debt_total is not None and equity_total and equity_total > 0:
                 debt_ratio = debt_total / equity_total * 100.0
                 debt_year = latest_year
-    debt_period = f"{debt_year}" if debt_year else None
+    debt_period = _kpi_period(f"{debt_year}") if debt_year else None
 
     coverage_value = None
     coverage_year = None
@@ -2161,7 +2183,7 @@ if "run" in locals() and run:
                 total_dividend = total_dividend / 100_000_000
             if total_dividend > 0:
                 coverage_value = fcf_value / total_dividend
-    coverage_period = f"{coverage_year}" if coverage_year else None
+    coverage_period = _kpi_period(f"{coverage_year}") if coverage_year else None
 
     intrinsic_gap = _valuation_pct(current_price, annual_result.intrinsic_value)
 
@@ -2416,7 +2438,7 @@ if "run" in locals() and run:
             "value": _pct_label(intrinsic_gap),
             "status": gap_status,
             "note": gap_note,
-            "period": "연간 기준",
+            "period": "연간 내재가치 기준",
             "group": "숙향 판단기준",
         }
     )
@@ -2436,7 +2458,7 @@ if "run" in locals() and run:
             "value": _format_score(john_neff_score),
             "status": neff_status,
             "note": neff_note,
-            "period": "EPS CAGR + 배당수익률 ÷ PER",
+            "period": "EPS CAGR + 배당수익률, PER로 나눈 값",
             "group": "기타",
         }
     )
@@ -2456,7 +2478,7 @@ if "run" in locals() and run:
             "value": _format_ratio(pbr_value),
             "status": pbr_status,
             "note": pbr_note,
-            "period": f"{pbr_year}" if pbr_year else None,
+            "period": _kpi_period(f"{pbr_year}") if pbr_year else None,
             "group": "숙향 판단기준",
         }
     )
@@ -2476,7 +2498,7 @@ if "run" in locals() and run:
             "value": _format_ratio(per_value),
             "status": per_status,
             "note": per_note,
-            "period": f"{per_year}" if per_year else None,
+            "period": _kpi_period(f"{per_year}") if per_year else None,
             "group": "숙향 판단기준",
         }
     )
@@ -2490,13 +2512,18 @@ if "run" in locals() and run:
     else:
         div_status = "bad"
         div_note = "배당수익률 3% 미만"
+    div_yield_period = None
+    if div_yield_year == "TTM":
+        div_yield_period = "TTM 기준"
+    elif div_yield_year:
+        div_yield_period = f"{div_yield_year} 기준"
     kpis.append(
         {
             "title": "배당수익률(최신)",
             "value": _format_pct(div_yield_value),
             "status": div_status,
             "note": div_note,
-            "period": f"{div_yield_year}" if div_yield_year else None,
+            "period": div_yield_period,
             "group": "숙향 판단기준",
         }
     )

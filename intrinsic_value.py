@@ -123,24 +123,41 @@ def compute_intrinsic_value_with_quarters(
     if latest_q.bps is None:
         raise ValueError("Latest quarterly BPS is required.")
 
-    prev1 = annual[-1]
-    prev2 = annual[-2]
+    latest_annual = annual[-1]
+    quarter_overlaps_latest_annual = latest_q.quarter == 4 and latest_annual.year == latest_q.year
 
-    weighted = _weighted_eps(est_annual_eps, prev1.eps, prev2.eps)
-    intrinsic = _intrinsic_value(latest_q.bps, weighted)
+    if quarter_overlaps_latest_annual:
+        if len(annual) < 3:
+            raise ValueError(
+                "Need at least 3 annual EPS points when latest quarter overlaps the latest annual report."
+            )
+        eps_n = latest_annual.eps
+        prev1 = annual[-2]
+        prev2 = annual[-3]
+        bps = latest_annual.bps if latest_annual.bps is not None else latest_q.bps
+        note = f"matched_latest_annual_eps={latest_annual.eps}"
+    else:
+        eps_n = est_annual_eps
+        prev1 = latest_annual
+        prev2 = annual[-2]
+        bps = latest_q.bps
+        note = f"estimated_annual_eps={est_annual_eps}"
+
+    weighted = _weighted_eps(eps_n, prev1.eps, prev2.eps)
+    intrinsic = _intrinsic_value(bps, weighted)
 
     implied_price = None
     if pbr is not None:
-        implied_price = latest_q.bps * pbr
+        implied_price = bps * pbr
 
     return IntrinsicValueResult(
         method="annual+quarterly",
-        bps=latest_q.bps,
+        bps=bps,
         weighted_eps=weighted,
         intrinsic_value=intrinsic,
         implied_price=implied_price,
         implied_pbr=pbr,
-        note=f"estimated_annual_eps={est_annual_eps}",
+        note=note,
     )
 
 

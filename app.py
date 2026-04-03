@@ -1488,14 +1488,26 @@ current_price = st.number_input(
     key="current_price",
 )
 
+st.markdown(
+    '연간 실적 (텍스트 붙여넣기) <span style="color:#d32f2f;font-weight:700">*</span> '
+    '<span style="color:#d32f2f;font-weight:700">필수입력</span>',
+    unsafe_allow_html=True,
+)
 annual_text = st.text_area(
     "연간 실적 (텍스트 붙여넣기)",
     height=220,
+    label_visibility="collapsed",
 )
 
+st.markdown(
+    '분기 실적 (텍스트 붙여넣기) <span style="color:#d32f2f;font-weight:700">*</span> '
+    '<span style="color:#d32f2f;font-weight:700">필수입력</span>',
+    unsafe_allow_html=True,
+)
 quarter_text = st.text_area(
-    "분기 실적 (선택, 텍스트 붙여넣기)",
+    "분기 실적 (텍스트 붙여넣기)",
     height=220,
+    label_visibility="collapsed",
 )
 
 run = st.button("분석 실행")
@@ -1509,6 +1521,13 @@ quarter_table = (
 )
 
 if "run" in locals() and run:
+    if not annual_text.strip():
+        st.error("연간 실적은 필수 입력값입니다.")
+        st.stop()
+
+    if not quarter_text.strip():
+        st.error("분기 실적은 필수 입력값입니다.")
+        st.stop()
 
     annual_points, annual_eps_map, annual_pbr_map = _build_annual_points(annual_table)
     if not annual_points:
@@ -1526,22 +1545,24 @@ if "run" in locals() and run:
     quarterly_pbr = None
     quarterly_points = None
     latest_quarter = None
-    if quarter_table:
-        quarterly_points, eps_list, quarterly_pbr_map = _build_quarterly_points(
-            quarter_table
+    quarterly_points, eps_list, quarterly_pbr_map = _build_quarterly_points(
+        quarter_table
+    )
+    if not quarterly_points:
+        st.error("분기 데이터 파싱에 실패했습니다. 붙여넣기 형식을 확인해주세요.")
+        st.stop()
+    if len(quarterly_points) >= 4:
+        quarter_eps_sum = sum(q.eps for q in quarterly_points[-4:])
+    latest_q = max(quarterly_points, key=lambda p: (p.year, p.quarter))
+    quarterly_pbr = quarterly_pbr_map.get((latest_q.year, latest_q.quarter))
+    latest_quarter = latest_q
+    try:
+        quarter_result = compute_intrinsic_value_with_quarters(
+            annual_points, quarterly_points
         )
-        if quarterly_points:
-            if len(quarterly_points) >= 4:
-                quarter_eps_sum = sum(q.eps for q in quarterly_points[-4:])
-            latest_q = max(quarterly_points, key=lambda p: (p.year, p.quarter))
-            quarterly_pbr = quarterly_pbr_map.get((latest_q.year, latest_q.quarter))
-            latest_quarter = latest_q
-            try:
-                quarter_result = compute_intrinsic_value_with_quarters(
-                    annual_points, quarterly_points
-                )
-            except Exception as exc:
-                st.warning(f"분기 분석 건너뜀: {exc}")
+    except Exception as exc:
+        st.error(f"분기 분석 실패: {exc}")
+        st.stop()
 
     latest_annual_year = max(p.year for p in annual_points)
     annual_pbr = annual_pbr_map.get(latest_annual_year)
@@ -1564,6 +1585,13 @@ if "run" in locals() and run:
     latest_annual_col = annual_columns[-1] if annual_columns else None
     ttm_label = _ttm_label_from_quarters(quarterly_points) if quarterly_points else None
     annual_index = {p.year: idx for idx, p in enumerate(annual_sorted)}
+    latest_annual_point = annual_sorted[-1] if annual_sorted else None
+    ttm_overlaps_latest_annual = bool(
+        latest_quarter
+        and latest_annual_point
+        and latest_quarter.quarter == 4
+        and latest_quarter.year == latest_annual_point.year
+    )
 
     def _weighted_by_year(year: int) -> float | None:
         idx = annual_index.get(year)
@@ -1849,6 +1877,9 @@ if "run" in locals() and run:
     real_quarter_values = _quarter_real_eps_by_period()
     if real_quarter_values:
         real_eps_ttm = _ttm_sum_from_quarter_values(real_quarter_values)
+    detail1_real_eps_ttm = real_eps_ttm
+    if ttm_overlaps_latest_annual and latest_annual_col:
+        detail1_real_eps_ttm = annual_real_eps_values.get(latest_annual_col)
 
     add_row(
         "EPS(원)",
@@ -1868,7 +1899,7 @@ if "run" in locals() and run:
         "실질EPS(원)",
         {
             **annual_real_eps_values,
-            **({ttm_label: real_eps_ttm} if ttm_label else {}),
+            **({ttm_label: detail1_real_eps_ttm} if ttm_label else {}),
         },
     )
     add_row(
